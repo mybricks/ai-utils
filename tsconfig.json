@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "esModuleInterop": true,
+    "strict": true,
+    "baseUrl": "./src",
+    "lib": ["ES2015", "DOM", "ES2017"],
+  },
+  "include": [
+    "./src/**/*"
+  ]
+}
