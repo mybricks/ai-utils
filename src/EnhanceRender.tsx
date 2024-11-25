@@ -7,7 +7,7 @@ const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment')
 const REACT_PROVIDER_TYPE = Symbol.for('react.provider')
 const REACT_CONTEXT_TYPE = Symbol.for('react.context');
 
-const RCContext = createContext({} as { _key: string })
+const RCContext = createContext({} as { _key: string, _parentKey: string })
 
 //const EditorsContext = createContext({} as { editors: {} })
 
@@ -56,22 +56,37 @@ function XY({_editors_, children}, ref) {
   } else {
     if (isValidElement(children)) {
       const {type, props} = children
+      const ctx = useContext(RCContext)
 
-      console.log(props)////TODO Form的问题
+      // console.log(props)////TODO Form的问题
       //
       // if (props?.["label"]==='用户名') {
       //   debugger
       // }
 
-      let _key = props?.["_key"];
+      let _parentKey = props?.["_key"] || ctx._parentKey;
+      const nextKey = children["key"];   
+      let _key = ctx._key;
 
-      if (children["key"]) {
-        if (_key) {
-          _key = _key + "_" + children["key"]
+      if (nextKey) {
+        if (_parentKey) {
+          _key = _parentKey + "_" + nextKey;
         } else {
-          _key = children["key"]
+          _key = nextKey
         }
+      } else {
+        _key = props?.["_key"] || ctx._key || _parentKey
       }
+
+      // let _key = props?.["_key"];
+
+      // if (children["key"]) {
+      //   if (_key) {
+      //     _key = _key + "_" + children["key"]
+      //   } else {
+      //     _key = children["key"]
+      //   }
+      // }
       // let _key = children["key"]
       // if (!_key && props) {
       //   _key = props["_key"]
@@ -94,7 +109,7 @@ function XY({_editors_, children}, ref) {
       if (type["$$typeof"] === REACT_MEMO_TYPE) {
         if (_key) {
           return (
-            <RCContext.Provider value={{_key}}>
+            <RCContext.Provider value={{_key, _parentKey}}>
               <MemoNext>{children}</MemoNext>
             </RCContext.Provider>
           )
@@ -104,7 +119,7 @@ function XY({_editors_, children}, ref) {
       } else if (type["$$typeof"] === REACT_FORWARD_REF_TYPE) {
         if (_key) {
           return (
-            <RCContext.Provider value={{_key}}>
+            <RCContext.Provider value={{_key, _parentKey}}>
               <ForwardRefNext>{children}</ForwardRefNext>
             </RCContext.Provider>
           )
@@ -138,7 +153,7 @@ function XY({_editors_, children}, ref) {
       } else if (type === REACT_FRAGMENT_TYPE) {
         if (_key) {
           return (
-            <RCContext.Provider value={{_key}}>
+            <RCContext.Provider value={{_key, _parentKey}}>
               <FragmentNext>{children}</FragmentNext>
             </RCContext.Provider>
           )
@@ -148,7 +163,7 @@ function XY({_editors_, children}, ref) {
       } else if (type === REACT_PROVIDER_TYPE) {
         if (_key) {
           return (
-            <RCContext.Provider value={{_key}}>
+            <RCContext.Provider value={{_key, _parentKey}}>
               <ProviderNext>{children}</ProviderNext>
             </RCContext.Provider>
           )
@@ -158,7 +173,7 @@ function XY({_editors_, children}, ref) {
       } else if (typeof type === 'function') {
         if (_key) {
           return (
-            <RCContext.Provider value={{_key}}>
+            <RCContext.Provider value={{_key, _parentKey}}>
               <FunctionNext>{children}</FunctionNext>
             </RCContext.Provider>
           )
@@ -168,7 +183,7 @@ function XY({_editors_, children}, ref) {
       } else if (typeof type === "string") {
         if (_key) {
           return (
-            <RCContext.Provider value={{_key}}>
+            <RCContext.Provider value={{_key, _parentKey}}>
               <StringNext>{children}</StringNext>
             </RCContext.Provider>
           )
