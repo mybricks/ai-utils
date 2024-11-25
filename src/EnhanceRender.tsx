@@ -37,7 +37,7 @@ export function EnhanceRender({children}) {
 
 const XYRender = forwardRef(XY)
 
-function XY({_editors_, children}) {
+function XY({_editors_, children}, ref) {
   //return children
 
   // console.log("children: ", children);
