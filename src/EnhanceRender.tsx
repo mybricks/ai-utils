@@ -63,10 +63,19 @@ function XY({_editors_, children}, ref) {
       //   debugger
       // }
 
-      let _key = children["key"]
-      if (!_key && props) {
-        _key = props["_key"]
+      let _key = props?.["_key"];
+
+      if (children["key"]) {
+        if (_key) {
+          _key = _key + "_" + children["key"]
+        } else {
+          _key = children["key"]
+        }
       }
+      // let _key = children["key"]
+      // if (!_key && props) {
+      //   _key = props["_key"]
+      // }
 
 //console.log('_key::',_key)
 
