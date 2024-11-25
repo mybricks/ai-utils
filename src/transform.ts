@@ -82,7 +82,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
             if (types.isJSXExpressionContainer(value)) {
               const { expression } = value;
               if (types.isMemberExpression(expression)) {
-                value.expression = types.binaryExpression("+", expression, types.stringLiteral(`${dependenciesToImported.get(tagName)}-${fullName}`)) 
+                value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${dependenciesToImported.get(tagName)}-${fullName}`)) 
               }
             }
           }
