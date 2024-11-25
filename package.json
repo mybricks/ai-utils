@@ -10,7 +10,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@babel/standalone": "^7.26.2"
+    "@babel/standalone": "^7.26.2",
+    "@babel/generator": "^7.26.2",
+    "@babel/parser": "^7.26.2",
+    "@babel/traverse": "^7.25.9",
+    "@babel/types": "^7.26.0"
   },
   "devDependencies": {
     "@types/babel__standalone": "^7.1.9"

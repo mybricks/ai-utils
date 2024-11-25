@@ -1,11 +1,23 @@
-import * as Babel from "@babel/standalone";
-import type { JSXIdentifier , JSXMemberExpression , JSXNamespacedName, JSXAttribute, JSXSpreadAttribute } from "@babel/types";
+//import * as Babel from "@babel/standalone";
+import * as parser from '@babel/parser'
+import * as  types from '@babel/types'
+import traverse from '@babel/traverse'
+import generator from '@babel/generator'
 
-import type { packages } from "@babel/standalone";
+import type {
+  JSXIdentifier,
+  JSXMemberExpression,
+  JSXNamespacedName,
+  JSXAttribute,
+  JSXSpreadAttribute
+} from "@babel/types";
+
+import type {packages} from "@babel/standalone";
+
 // const Babel = (window as any).Babel as { packages: typeof packages }// https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js
 
-export const transformRender = (code: string, ExtendJSXProps: () => Record<string, string>) => {
-  const { types, parser, traverse, generator } = Babel.packages;
+export function transformRender(code: string, travelFn: ({tagName, attributeNames}) => Record<string, string>) {
+  //const { types, parser, traverse, generator } = Babel.packages;
 
   const ast = parser.parse(code, {
     sourceType: "module",
@@ -26,13 +38,13 @@ export const transformRender = (code: string, ExtendJSXProps: () => Record<strin
     }
   }
 
-  /** 
+  /**
    * 收集导入的依赖
    * import { Form, Button } from "antd"; => Form, Button
    */
   const importedDependencies = new Set();
 
-  traverse.default(ast, {
+  traverse(ast, {
     ImportDeclaration(path) {
       path.get("specifiers").forEach((specifier) => {
         if (specifier.isImportSpecifier()) {
@@ -51,28 +63,30 @@ export const transformRender = (code: string, ExtendJSXProps: () => Record<strin
       // 判断是否来自import
       if (importedDependencies.has(tagName)) {
         const attributeNames = new Set(path.node.attributes.filter((attr) => {
-          return types.isJSXAttribute(attr);
-        }).map((attr) => attr.name.name));
-        // 扩展属性
-        const extendJSXProps = ExtendJSXProps();
+          return types.isJSXAttribute(attr)
+        }).map((attr) => attr.name.name))
 
-        Object.entries(extendJSXProps).forEach(([key, value]) => {
-          if (!attributeNames.has(key)) {
-            // 设置没有的key value
-            path.node.attributes.push(
-              types.jsxAttribute(
-                types.jsxIdentifier(key),
-                types.stringLiteral(value),
-              ),
-            );
-          }
-        })
+        // 扩展属性
+        const extendJSXProps = travelFn({tagName, attributeNames})
+        if (extendJSXProps) {
+          Object.entries(extendJSXProps).forEach(([key, value]) => {
+            if (!attributeNames.has(key)) {
+              // 设置没有的key value
+              path.node.attributes.push(
+                types.jsxAttribute(
+                  types.jsxIdentifier(key),
+                  types.stringLiteral(value),
+                ),
+              );
+            }
+          })
+        }
       }
     },
   })
 
   // ast转code
-  const sourceCode = generator.default(ast).code;
+  const sourceCode = generator(ast).code;
 
   return sourceCode;
 }
