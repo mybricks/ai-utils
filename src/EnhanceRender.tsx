@@ -1,10 +1,11 @@
-import {cloneElement, createContext, isValidElement, useContext} from "react";
+import {cloneElement, createContext, isValidElement, useContext, forwardRef} from "react";
 //import ComContext from "../../ComContext";
 
 const REACT_MEMO_TYPE = Symbol.for('react.memo')
 const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref')
 const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment')
 const REACT_PROVIDER_TYPE = Symbol.for('react.provider')
+const REACT_CONTEXT_TYPE = Symbol.for('react.context');
 
 const RCContext = createContext({} as { _key: string })
 
@@ -34,7 +35,9 @@ export function EnhanceRender({children}) {
   // )
 }
 
-function XYRender({_editors_, children}) {
+const XYRender = forwardRef(XY)
+
+function XY({_editors_, children}) {
   //return children
 
   // console.log("children: ", children);
@@ -43,9 +46,9 @@ function XYRender({_editors_, children}) {
   }
 
   if (Array.isArray(children)) {
-    return children.map((child) => {
+    return children.map((child, index) => {
       return (
-        <XYRender>
+        <XYRender key={index}>
           {child}
         </XYRender>
       )
@@ -99,6 +102,30 @@ function XYRender({_editors_, children}) {
         }
 
         return <ForwardRefNext>{children}</ForwardRefNext>
+      } else if (type["$$typeof"] === REACT_PROVIDER_TYPE) {
+        const nextChildren = props.children;
+
+        if (nextChildren) {
+          return cloneElement(children, {
+            ...props,
+            'data-selector-key': _key,
+            children: <XYRender>{nextChildren}</XYRender>,
+          })
+        }
+      } else if (type["$$typeof"] === REACT_CONTEXT_TYPE) {
+        const nextChildren = props.children;
+
+        if (nextChildren) {
+          return cloneElement(children, {
+            ...props,
+            'data-selector-key': _key,
+            children: (...args) => {
+             return <XYRender>{nextChildren(...args)}</XYRender>
+            }
+          })
+        }
+
+        return children;
       } else if (type === REACT_FRAGMENT_TYPE) {
         if (_key) {
           return (
@@ -259,6 +286,19 @@ function ProviderNext({children}) {
   const nextChildren = props.children
 
   if (nextChildren) {
+    if (typeof nextChildren === "function") {
+      return cloneElement(children, {
+        ...props,
+        children: (...args) => {
+          return <XYRender>{nextChildren(...args)}</XYRender>
+        },
+      })
+    } else {
+      return cloneElement(children, {
+        ...props,
+        children: <XYRender>{nextChildren}</XYRender>,
+      })
+    }
     return cloneElement(children, {
       ...props,
       children: <XYRender>{nextChildren}</XYRender>,
