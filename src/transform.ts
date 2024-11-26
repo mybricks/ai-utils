@@ -14,6 +14,8 @@ import type {
 
 import type {packages} from "@babel/standalone";
 
+import { replaceNonAlphaNumeric } from "./utils";
+
 // const Babel = (window as any).Babel as { packages: typeof packages }// https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js
 
 export function transformRender(code: string, travelFn: ({tagName, attributeNames}: {tagName: string, attributeNames: Set<string>}) => Record<string, string>) {
@@ -82,7 +84,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
             if (types.isJSXExpressionContainer(value)) {
               const { expression } = value;
               if (types.isMemberExpression(expression)) {
-                value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${dependenciesToImported.get(tagName)}-${fullName}`)) 
+                value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)}`)) 
               }
             }
           }
@@ -94,7 +96,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
           path.node.attributes.push(
             types.jsxAttribute(
               types.jsxIdentifier("className"),
-              types.stringLiteral(`${dependenciesToImported.get(tagName)}-${fullName}`),
+              types.stringLiteral(replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)),
             ),
           )
         }
