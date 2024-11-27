@@ -52,6 +52,23 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
   const dependenciesToImported = new Map();
 
   traverse(ast, {
+    VariableDeclarator(path) {
+      if (types.isIdentifier(path.node.init)) {
+        const dependency = path.node.init.name;
+        if (importedDependencies.has(dependency)) {
+          if (types.isObjectPattern(path.node.id)) {
+            console.log(path.node.id.properties)
+
+            path.node.id.properties.forEach((property) => {
+              if (types.isObjectProperty(property) && types.isIdentifier(property.value)) {
+                importedDependencies.add(property.value.name);
+                dependenciesToImported.set(property.value.name, dependency);
+              }
+            })
+          }
+        }
+      }
+    },
     ImportDeclaration(path) {
       const dependency = path.node.source.value;
 
