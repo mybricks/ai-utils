@@ -44,7 +44,14 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
    * import { Form, Button } from "antd"; => Form, Button
    */
   const importedDependencies = new Set();
+  /** 
+   * Form, Button => "antd" => import { Form, Button } from "antd"; 
+   */
   const dependenciesToImported = new Map();
+  /**
+   * 根节点
+   */
+  let stopJSXElement: boolean = false;
 
   traverse(ast, {
     VariableDeclarator(path) {
@@ -71,6 +78,23 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
           dependenciesToImported.set(specifier.node.local.name, dependency);
         }
       });
+    },
+    JSXElement(path) {
+      if (!stopJSXElement) {
+        if (types.isJSXIdentifier(path.node.openingElement.name)) {
+          if (importedDependencies.has(path.node.openingElement.name.name)) {
+            path.node.openingElement.attributes.unshift(types.jsxAttribute(
+              types.jsxIdentifier("_asRoot"),
+            ));
+            stopJSXElement = true;
+          } else {
+            if (path.node.children.filter((child) => types.isJSXElement(child)).length > 1) {
+              stopJSXElement = true;
+            }
+          }
+        }
+      }
+
     },
     JSXOpeningElement(path) {
       /** 标签名 */
