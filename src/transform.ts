@@ -26,11 +26,6 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
     plugins: ["jsx"]
   })
 
-  /** 判断是否添加过 _key 属性 */
-  const isDoneAttr = (attr: JSXAttribute | JSXSpreadAttribute) => {
-    return types.isJSXAttribute(attr) && attr.name.name === "_key";
-  }
-
   /** 获取标签名 例如 Form.Item => Form */
   const getTagName = (name: JSXIdentifier | JSXMemberExpression | JSXNamespacedName, fullName: string = "") => {
     if (types.isJSXIdentifier(name)) {
@@ -57,8 +52,6 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
         const dependency = path.node.init.name;
         if (importedDependencies.has(dependency)) {
           if (types.isObjectPattern(path.node.id)) {
-            console.log(path.node.id.properties)
-
             path.node.id.properties.forEach((property) => {
               if (types.isObjectProperty(property) && types.isIdentifier(property.value)) {
                 importedDependencies.add(property.value.name);
@@ -80,10 +73,6 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
       });
     },
     JSXOpeningElement(path) {
-      // if (path.node.attributes.some(isDoneAttr)) {
-      //   return;
-      // }
-
       /** 标签名 */
       const { name: tagName, fullName } = getTagName(path.node.name);
 
