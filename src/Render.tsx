@@ -77,7 +77,7 @@ const Render = forwardRef(({ children }: PropsWithChildren, ref) => {
 export default Render;
 
 interface NextProps {
-  children: ReactElement;
+  children: ReactElement | any;
 }
 
 const StringNext = ({ children }: NextProps) => {
@@ -110,10 +110,17 @@ const ObjectNext = ({ children }: NextProps) => {
 
 const ForwardRefNext = ({ children }: NextProps) => {
   const { props, ref, type } = children as any;
+  const next = type.render(props, ref)
+
+  if (next && !Array.isArray(next)) {
+    return cloneElement(next, {
+      children: next.props.children ? <Render>{next.props.children}</Render> : null
+    })
+  }
 
   return (
     <Render>
-      {type.render(props, ref)}
+      {next}
     </Render>
   )
 }
@@ -134,9 +141,18 @@ const ProviderNext = ({ children }: NextProps) => {
 const MemoNext = ({ children }: NextProps) => {
   const { type, props } = children as any;
 
-  const next = type.type(props)
+  if (typeof type.type === 'function') {
+    const next = type.type(props)
+    return <Render>{next}</Render>
+  } if (type.type["$$typeof"] === REACT_FORWARD_REF_TYPE) {
+    const next = type.type.render(props, children.ref)
 
-  return <Render>{next}</Render>
+    return <Render>{next}</Render>
+  } else {
+    console.log("MemoNext 未处理: ", children);
+  }
+
+  return children;
 }
 
 const FunctionNext = ({ children }: NextProps) => {
