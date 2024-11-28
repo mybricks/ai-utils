@@ -107,18 +107,21 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
 
       if (tagName) {
         let classNameAttribute;
+        const isImportedDependency = importedDependencies.has(tagName);
         const attributeNames = new Set(path.node.attributes.filter((attr) => {
           return types.isJSXAttribute(attr)
         }).map((attr) => {
           const attributeName = attr.name.name;
 
-          if (attributeName === "className") {
-            classNameAttribute = attr;
-            const { value } = attr;
-            if (types.isJSXExpressionContainer(value)) {
-              const { expression } = value;
-              if (types.isMemberExpression(expression)) {
-                value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)}`)) 
+          if (isImportedDependency) {
+            if (attributeName === "className") {
+              classNameAttribute = attr;
+              const { value } = attr;
+              if (types.isJSXExpressionContainer(value)) {
+                const { expression } = value;
+                if (types.isMemberExpression(expression)) {
+                  value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)}`)) 
+                }
               }
             }
           }
@@ -129,7 +132,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
         let type: TagType = "normal";
 
         // 判断是否来自import
-        if (importedDependencies.has(tagName)) {
+        if (isImportedDependency) {
           if (!classNameAttribute) {
             path.node.attributes.push(
               types.jsxAttribute(
