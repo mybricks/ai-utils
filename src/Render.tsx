@@ -15,6 +15,8 @@ const REACT_MEMO_TYPE = Symbol.for('react.memo');
 const REACT_LAZY_TYPE = Symbol.for('react.lazy');
 const REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 
+const proKey = `data-com-key`
+
 const Context = createContext<{_key: string | null}>({ _key: null });
 const Provider = Context.Provider;
 
@@ -40,7 +42,7 @@ const Next = ({ children }: PropsWithChildren) => {
   return children;
 }
 
-const Render = forwardRef(({ children }: PropsWithChildren, ref) => {
+const Render = forwardRef((({ children }: PropsWithChildren, ref) => {
   if (Array.isArray(children)) {
     return children.map((child, index) => {
       return <Render key={index}>{child}</Render>;
@@ -50,7 +52,7 @@ const Render = forwardRef(({ children }: PropsWithChildren, ref) => {
   if (isValidElement(children)) {
     const { props, key: childrenKey } = children;
     const { _key: _contextKey } = useContext(Context);
-    let _key = props._key || _contextKey;
+    let _key = props[proKey] || _contextKey;
 
     if (childrenKey) {
       _key = _key ? `${_key}_${childrenKey}` : childrenKey;
@@ -72,7 +74,7 @@ const Render = forwardRef(({ children }: PropsWithChildren, ref) => {
   }
 
   return children;
-})
+}) as any)
 
 export default Render;
 
@@ -85,7 +87,7 @@ const StringNext = ({ children }: NextProps) => {
   const { props } = children;
   const { children: nextChildren } = props;
   const next = cloneElement(children, {
-    _key,
+    [proKey]:_key,
     children: nextChildren ? <Render>{nextChildren}</Render> : null
   })
 

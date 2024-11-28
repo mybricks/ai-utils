@@ -11,7 +11,7 @@ const RCContext = createContext({} as { _key: string, _parentKey: string })
 
 //const EditorsContext = createContext({} as { editors: {} })
 
-export function EnhanceRender({children}) {
+export function EnhanceRender({children}) {////TODO runtime更新后，outputs没了
   //const {model} = comContext
   //const extSourceCodes = model.runtime.model.extSourceCodes
   // const editors = extSourceCodes.editors
