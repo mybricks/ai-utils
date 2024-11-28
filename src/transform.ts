@@ -18,7 +18,9 @@ import { replaceNonAlphaNumeric } from "./utils";
 
 // const Babel = (window as any).Babel as { packages: typeof packages }// https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js
 
-export function transformRender(code: string, travelFn: ({tagName, attributeNames, asRoot}: {tagName: string, attributeNames: Set<string>, asRoot: boolean}) => Record<string, string>) {
+type TagType = "normal" | "normalRoot" | "com" | "comRoot";
+
+export function transformRender(code: string, travelFn: ({tagName, attributeNames, type}: {tagName: string, attributeNames: Set<string>, type: TagType}) => Record<string, string>) {
   //const { types, parser, traverse, generator } = Babel.packages;
 
   const ast = parser.parse(code, {
@@ -48,10 +50,10 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
    * Form, Button => "antd" => import { Form, Button } from "antd"; 
    */
   const dependenciesToImported = new Map();
-  /**
-   * 根节点
-   */
-  let root: types.JSXIdentifier;
+  /** 最外层依赖组件 */
+  let comRoot: types.JSXIdentifier;
+  /** 最外层普通标签 */
+  let normalRoot: types.JSXIdentifier;
   /** 停止遍历JSXElement */
   let stopJSXElement: boolean = false;
 
@@ -85,9 +87,12 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
       if (!stopJSXElement) {
         if (types.isJSXIdentifier(path.node.openingElement.name)) {
           if (importedDependencies.has(path.node.openingElement.name.name)) {
-            root = path.node.openingElement.name;
+            comRoot = path.node.openingElement.name;
             stopJSXElement = true;
           } else {
+            if (!normalRoot) {
+              normalRoot = path.node.openingElement.name;
+            }
             if (path.node.children.filter((child) => types.isJSXElement(child)).length > 1) {
               stopJSXElement = true;
             }
@@ -100,8 +105,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
       /** 标签名 */
       const { name: tagName, fullName } = getTagName(path.node.name);
 
-      // 判断是否来自import
-      if (tagName && importedDependencies.has(tagName)) {
+      if (tagName) {
         let classNameAttribute;
         const attributeNames = new Set(path.node.attributes.filter((attr) => {
           return types.isJSXAttribute(attr)
@@ -122,17 +126,32 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
           return attr.name.name as string
         }))
 
-        if (!classNameAttribute) {
-          path.node.attributes.push(
-            types.jsxAttribute(
-              types.jsxIdentifier("className"),
-              types.stringLiteral(replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)),
-            ),
-          )
+        let type: TagType = "normal";
+
+        // 判断是否来自import
+        if (importedDependencies.has(tagName)) {
+          if (!classNameAttribute) {
+            path.node.attributes.push(
+              types.jsxAttribute(
+                types.jsxIdentifier("className"),
+                types.stringLiteral(replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)),
+              ),
+            )
+          }
+
+          if (comRoot === path.node.name) {
+            type = "comRoot";
+          } else {
+            type = "com";
+          }
+        } else {
+          if (normalRoot === path.node.name) {
+            type = "normalRoot";
+          }
         }
 
         // 扩展属性
-        const extendJSXProps = travelFn({tagName, attributeNames, asRoot: root && root === path.node.name})
+        const extendJSXProps = travelFn({tagName, attributeNames, type})
         if (extendJSXProps) {
           Object.entries(extendJSXProps).forEach(([key, value]) => {
             if (!attributeNames.has(key)) {
