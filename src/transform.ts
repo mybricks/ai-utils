@@ -41,15 +41,6 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
     return { name: "", fullName }
   }
 
-  /**
-   * 收集导入的依赖
-   * import { Form, Button } from "antd"; => Form, Button
-   */
-  const importedDependencies = new Set();
-  /** 
-   * Form, Button => "antd" => import { Form, Button } from "antd"; 
-   */
-  const dependenciesToImported = new Map();
   /** 最外层依赖组件 */
   let comRoot: types.JSXIdentifier;
   /** 最外层普通标签 */
@@ -57,36 +48,51 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
   /** 停止遍历JSXElement */
   let stopJSXElement: boolean = false;
 
-  traverse(ast, {
-    VariableDeclarator(path) {
-      if (types.isIdentifier(path.node.init)) {
-        const dependency = path.node.init.name;
-        if (importedDependencies.has(dependency)) {
-          if (types.isObjectPattern(path.node.id)) {
-            path.node.id.properties.forEach((property) => {
-              if (types.isObjectProperty(property) && types.isIdentifier(property.value)) {
-                importedDependencies.add(property.value.name);
-                dependenciesToImported.set(property.value.name, dependency);
-              }
-            })
+  /**
+   * 导入组件到class名的映射
+   * import { Button } from "antd"; => Button => antd_Button
+   * const { A } = Button; => A => antd_Button
+   */
+  const recordImports = new Map();
+
+  /** 记录导入信息 */
+  const recordImport = (node: types.ImportDeclaration) => {
+    node.specifiers.forEach((specifier) => {
+      if (types.isImportSpecifier(specifier)) {
+        recordImports.set(specifier.local.name, `${node.source.value}_${specifier.local.name}`);
+      }
+    })
+  }
+
+  /** 记录解构组件 */
+  const recordDestructuring = (id: types.LVal, relyName: string) => {
+    if (types.isObjectPattern(id)) {
+      id.properties.forEach((property) => {
+        if (types.isObjectProperty(property) && types.isIdentifier(property.key)) {
+          recordImports.set(property.key.name, recordImports.get(relyName))
+          if (types.isObjectPattern(property.value)) {
+            // 多层解构
+            recordDestructuring(property.value, relyName)
           }
         }
+      })
+    }
+  }
+
+  traverse(ast, {
+    VariableDeclarator(path) {
+      const { id, init } = path.node;
+      if (types.isIdentifier(init) && recordImports.has(init.name)) {
+        recordDestructuring(id, init.name)
       }
     },
     ImportDeclaration(path) {
-      const dependency = path.node.source.value;
-
-      path.get("specifiers").forEach((specifier) => {
-        if (specifier.isImportSpecifier()) {
-          importedDependencies.add(specifier.node.local.name);
-          dependenciesToImported.set(specifier.node.local.name, dependency);
-        }
-      });
+      recordImport(path.node);
     },
     JSXElement(path) {
       if (!stopJSXElement) {
         if (types.isJSXIdentifier(path.node.openingElement.name)) {
-          if (importedDependencies.has(path.node.openingElement.name.name)) {
+          if (recordImports.has(path.node.openingElement.name.name)) {
             comRoot = path.node.openingElement.name;
             stopJSXElement = true;
           } else {
@@ -107,7 +113,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
 
       if (tagName) {
         let classNameAttribute;
-        const isImportedDependency = importedDependencies.has(tagName);
+        const isImportedDependency = recordImports.has(tagName);
         const attributeNames = new Set(path.node.attributes.filter((attr) => {
           return types.isJSXAttribute(attr)
         }).map((attr) => {
@@ -120,7 +126,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
               if (types.isJSXExpressionContainer(value)) {
                 const { expression } = value;
                 if (types.isMemberExpression(expression)) {
-                  value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)}`)) 
+                  value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${replaceNonAlphaNumeric(recordImports.get(tagName))}`)) 
                 }
               }
             }
@@ -137,7 +143,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
             path.node.attributes.push(
               types.jsxAttribute(
                 types.jsxIdentifier("className"),
-                types.stringLiteral(replaceNonAlphaNumeric(`${dependenciesToImported.get(tagName)}_${fullName}`)),
+                types.stringLiteral(replaceNonAlphaNumeric(`${recordImports.get(tagName)}`)),
               ),
             )
           }
