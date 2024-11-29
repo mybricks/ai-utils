@@ -31,14 +31,10 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
   /** 获取标签名 例如 Form.Item => Form */
   const getTagName = (name: JSXIdentifier | JSXMemberExpression | JSXNamespacedName, fullName: string = "") => {
     if (types.isJSXIdentifier(name)) {
-      return {
-        name: name.name,
-        fullName: name.name + fullName
-      }
+      return name.name
     } else if (types.isJSXMemberExpression(name)) {
-      return getTagName(name.object, "-" + name.property.name + fullName)
+      return getTagName(name.object);
     }
-    return { name: "", fullName }
   }
 
   /** 最外层依赖组件 */
@@ -109,7 +105,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
     },
     JSXOpeningElement(path) {
       /** 标签名 */
-      const { name: tagName, fullName } = getTagName(path.node.name);
+      const tagName = getTagName(path.node.name);
 
       if (tagName) {
         let classNameAttribute;
