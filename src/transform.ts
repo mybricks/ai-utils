@@ -128,6 +128,8 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
                 if (types.isMemberExpression(expression)) {
                   value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${replaceNonAlphaNumeric(recordImports.get(tagName))}`)) 
                 }
+              } else if (types.isStringLiteral(value)) {
+                attr.value = types.stringLiteral(`${value.value} ${replaceNonAlphaNumeric(recordImports.get(tagName))}`);
               }
             }
           }
