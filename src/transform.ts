@@ -9,7 +9,8 @@ import type {
   JSXMemberExpression,
   JSXNamespacedName,
   JSXAttribute,
-  JSXSpreadAttribute
+  JSXSpreadAttribute,
+  BinaryExpression
 } from "@babel/types";
 
 import type {packages} from "@babel/standalone";
@@ -75,6 +76,19 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
     }
   }
 
+  /** 解析二进制，目前用于解析className={css.card + "xxx"} */
+  const parseBinaryExpression = ({ left, right }: BinaryExpression, result: string[] = []) => {
+    if (types.isStringLiteral(right)) {
+      result.push(right.value)
+    }
+    if (types.isBinaryExpression(left)) {
+      parseBinaryExpression(left, result);
+    }
+    return result;
+  }
+
+  /** 解析 */
+
   traverse(ast, {
     VariableDeclarator(path) {
       const { id, init } = path.node;
@@ -119,13 +133,21 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
             if (attributeName === "className") {
               classNameAttribute = attr;
               const { value } = attr;
+              const className = replaceNonAlphaNumeric(recordImports.get(tagName));
               if (types.isJSXExpressionContainer(value)) {
                 const { expression } = value;
                 if (types.isMemberExpression(expression)) {
-                  value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${replaceNonAlphaNumeric(recordImports.get(tagName))}`)) 
+                  value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
+                } else if (types.isBinaryExpression(expression)) {
+                  const classNames = parseBinaryExpression(expression);
+                  if (!classNames.some((cn) => cn === className || cn === ` ${className}`)) {
+                    value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
+                  }
                 }
               } else if (types.isStringLiteral(value)) {
-                attr.value = types.stringLiteral(`${value.value} ${replaceNonAlphaNumeric(recordImports.get(tagName))}`);
+                if (!value.value.split(" ").includes(className)) {
+                  attr.value = types.stringLiteral(`${value.value} ${className}`);
+                }
               }
             }
           }
