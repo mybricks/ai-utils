@@ -21,6 +21,16 @@ import { replaceNonAlphaNumeric } from "./utils";
 
 type TagType = "normal" | "normalRoot" | "com" | "comRoot";
 
+/** 组件唯一标识 */
+const DATA_COM_KEY = "data-com-key";
+
+/** 依赖组件完全数据源入参key */
+const RELY_COM_DATA_KEY = "_data";
+
+/** 组件数据源入参key */
+const COM_DATA_KEY = "data";
+
+
 export function transformRender(code: string, travelFn: ({tagName, attributeNames, type}: {tagName: string, attributeNames: Set<string>, type: TagType}) => Record<string, string>) {
   //const { types, parser, traverse, generator } = Babel.packages;
 
@@ -193,6 +203,22 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
               );
             }
           })
+          const dataComKey = extendJSXProps[DATA_COM_KEY];
+          // 没有_data属性，并且有data-com-key属性
+          if (!attributeNames.has(RELY_COM_DATA_KEY) && dataComKey) {
+            path.node.attributes.push(
+              types.jsxAttribute(
+                types.jsxIdentifier(RELY_COM_DATA_KEY),
+                types.jSXExpressionContainer(
+                  types.memberExpression(
+                    types.identifier(COM_DATA_KEY),
+                    types.stringLiteral(dataComKey),
+                    true
+                  )
+                )
+              )
+            )
+          }
         }
       }
     },
