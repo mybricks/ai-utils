@@ -42,10 +42,14 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
   /** 获取标签名 例如 Form.Item => Form */
   const getTagName = (name: JSXIdentifier | JSXMemberExpression | JSXNamespacedName, fullName: string = "") => {
     if (types.isJSXIdentifier(name)) {
-      return name.name
+      return {
+        tagName: name.name,
+        fullName: name.name + fullName
+      }
     } else if (types.isJSXMemberExpression(name)) {
-      return getTagName(name.object);
+      return getTagName(name.object, "." + name.property.name + fullName)
     }
+    return { tagName: "", fullName }
   }
 
   /** 最外层依赖组件 */
@@ -62,10 +66,14 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
    */
   const recordImports = new Map();
 
+  /** 记录依赖组件 */
+  const recordDependency = new Map();
+
   /** 记录导入信息 */
   const recordImport = (node: types.ImportDeclaration) => {
     node.specifiers.forEach((specifier) => {
       if (types.isImportSpecifier(specifier)) {
+        recordDependency.set(specifier.local.name, node.source.value)
         recordImports.set(specifier.local.name, `${node.source.value}_${specifier.local.name}`);
       }
     })
@@ -76,6 +84,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
     if (types.isObjectPattern(id)) {
       id.properties.forEach((property) => {
         if (types.isObjectProperty(property) && types.isIdentifier(property.key)) {
+          // TODO: recordDependency
           recordImports.set(property.key.name, recordImports.get(relyName))
           if (types.isObjectPattern(property.value)) {
             // 多层解构
@@ -129,7 +138,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
     },
     JSXOpeningElement(path) {
       /** 标签名 */
-      const tagName = getTagName(path.node.name);
+      const { tagName, fullName } = getTagName(path.node.name);
 
       if (tagName) {
         let classNameAttribute;
@@ -190,7 +199,7 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
         }
 
         // 扩展属性
-        const extendJSXProps = travelFn({tagName, attributeNames, type})
+        const extendJSXProps = travelFn({tagName, attributeNames, type, libName: recordDependency.get(tagName), comName: fullName})
         if (extendJSXProps) {
           Object.entries(extendJSXProps).forEach(([key, value]) => {
             if (!attributeNames.has(key)) {
