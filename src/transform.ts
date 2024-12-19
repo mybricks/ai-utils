@@ -31,7 +31,7 @@ const RELY_COM_DATA_KEY = "_data";
 const COM_DATA_KEY = "data";
 
 
-export function transformRender(code: string, travelFn: ({tagName, attributeNames, type}: {tagName: string, attributeNames: Set<string>, type: TagType}) => Record<string, string>) {
+export function transformRender(code: string, travelFn: (params: {tagName: string, attributeNames: Set<string>, type: TagType, libName: string, comName: string}) => Record<string, string>) {
   //const { types, parser, traverse, generator } = Babel.packages;
 
   const ast = parser.parse(code, {
@@ -146,30 +146,30 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
         const attributeNames = new Set(path.node.attributes.filter((attr) => {
           return types.isJSXAttribute(attr)
         }).map((attr) => {
-          const attributeName = attr.name.name;
+          // const attributeName = attr.name.name;
 
-          if (isImportedDependency) {
-            if (attributeName === "className") {
-              classNameAttribute = attr;
-              const { value } = attr;
-              const className = replaceNonAlphaNumeric(recordImports.get(tagName));
-              if (types.isJSXExpressionContainer(value)) {
-                const { expression } = value;
-                if (types.isMemberExpression(expression)) {
-                  value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
-                } else if (types.isBinaryExpression(expression)) {
-                  const classNames = parseBinaryExpression(expression);
-                  if (!classNames.some((cn) => cn === className || cn === ` ${className}`)) {
-                    value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
-                  }
-                }
-              } else if (types.isStringLiteral(value)) {
-                if (!value.value.split(" ").includes(className)) {
-                  attr.value = types.stringLiteral(`${value.value} ${className}`);
-                }
-              }
-            }
-          }
+          // if (isImportedDependency) {
+          //   if (attributeName === "className") {
+          //     classNameAttribute = attr;
+          //     const { value } = attr;
+          //     const className = replaceNonAlphaNumeric(recordImports.get(tagName));
+          //     if (types.isJSXExpressionContainer(value)) {
+          //       const { expression } = value;
+          //       if (types.isMemberExpression(expression)) {
+          //         value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
+          //       } else if (types.isBinaryExpression(expression)) {
+          //         const classNames = parseBinaryExpression(expression);
+          //         if (!classNames.some((cn) => cn === className || cn === ` ${className}`)) {
+          //           value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
+          //         }
+          //       }
+          //     } else if (types.isStringLiteral(value)) {
+          //       if (!value.value.split(" ").includes(className)) {
+          //         attr.value = types.stringLiteral(`${value.value} ${className}`);
+          //       }
+          //     }
+          //   }
+          // }
 
           return attr.name.name as string
         }))
@@ -178,14 +178,14 @@ export function transformRender(code: string, travelFn: ({tagName, attributeName
 
         // 判断是否来自import
         if (isImportedDependency) {
-          if (!classNameAttribute) {
-            path.node.attributes.push(
-              types.jsxAttribute(
-                types.jsxIdentifier("className"),
-                types.stringLiteral(replaceNonAlphaNumeric(`${recordImports.get(tagName)}`)),
-              ),
-            )
-          }
+          // if (!classNameAttribute) {
+          //   path.node.attributes.push(
+          //     types.jsxAttribute(
+          //       types.jsxIdentifier("className"),
+          //       types.stringLiteral(replaceNonAlphaNumeric(`${recordImports.get(tagName)}`)),
+          //     ),
+          //   )
+          // }
 
           if (comRoot === path.node.name) {
             type = "comRoot";
