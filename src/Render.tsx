@@ -44,8 +44,8 @@ const Next = ({ children }: PropsWithChildren) => {
 
 const Render = ({ children }: PropsWithChildren) => {
   if (Array.isArray(children)) {
-    return children.map((child, index) => {
-      return <Render key={index}>{child}</Render>;
+    return children.map((child) => {
+      return <Render key={child?.key}>{child}</Render>;
     })
   }
 
@@ -178,15 +178,12 @@ const ForwardRefNext = ({ children }: NextProps) => {
 
   if (nextChildren) {
     if (typeof nextChildren === "function") {
-      if (!props.children.__airender__) {
-        const oriNextChildren = nextChildren;
-        props.children = (...args) => {
-          const res = oriNextChildren(...args)
-          return <Render>{res}</Render>
+      const oriNextChildren = nextChildren;
+      return cloneElement(children, {
+        children: (...args) => {
+          return <Render>{oriNextChildren(...args)}</Render>
         }
-        props.children.__airender__ = true;
-      }
-      return children
+      })
     }
     return cloneElement(children, {
       children: Array.isArray(nextChildren) ? nextChildren.map((child) => {
