@@ -178,7 +178,7 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
         }
 
         // 扩展属性
-        const extendJSXProps = travelFn({tagName, attributeNames: new Set(Array.from(attributeNamesMap.keys())), type, libName: recordDependency.get(tagName), comName: fullName})
+        const extendJSXProps = travelFn({tagName, attributeNames: new Set(attributeNamesMap.keys()), type, libName: recordDependency.get(tagName), comName: fullName})
         if (extendJSXProps) {
           Object.entries(extendJSXProps).forEach(([key, value]) => {
             if (!attributeNamesMap.has(key)) {
