@@ -253,7 +253,6 @@ const ForwardRefNext = ({ children }: NextProps) => {
       };
   
       type.__airender__ = true
-      type.__ori__ = oriRender
     } else {
       const oriRender = type.render;
 
