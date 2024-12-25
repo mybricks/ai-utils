@@ -43,7 +43,7 @@ const Next = ({ children }: PropsWithChildren) => {
 }
 
 /** 解决响应式，多嵌套一层 */
-const ProxyNext = ({ children, mergeProps }) => {
+const ProxyNext = ({ children, mergeProps }: any) => {
   const oriProps = {...children.props};
   Object.entries(mergeProps).forEach(([key, value]) => {
     if (!(key in oriProps)) {
@@ -121,7 +121,9 @@ const Render = ({ _data, children }: PropsWithChildren<{ _data?: any }>) => {
         )
       } else {
         return (
-          <Next>{children}</Next>
+          <Next>{cloneElement(children, {
+            [proKey]: null
+          })}</Next>
         )
       }
     }
@@ -180,6 +182,29 @@ const Render = ({ _data, children }: PropsWithChildren<{ _data?: any }>) => {
 }
 
 export default Render;
+
+const renderFunctionHijack = ({
+  type,
+  render,
+  next
+}) => {
+  if (!type.__airender__) {
+    if (type.__ori__) {
+      const oriRender = type.__ori__
+
+      next(oriRender)
+  
+      type.__airender__ = true
+    } else {
+      const oriRender = render;
+
+      next(oriRender)
+
+      type.__airender__ = true;
+      type.__ori__ = oriRender
+    }
+  }
+}
 
 interface NextProps {
   children: ReactElement | any;
@@ -247,25 +272,16 @@ const ForwardRefNext = ({ children }: NextProps) => {
   }
 
   if (!type.__airender__) {
-    if (type.__ori__) {
-      const oriRender = type.__ori__
-      type.render = (...args) => {
-        const res = oriRender(...args)
-        return <Render>{res}</Render>
-      };
-  
-      type.__airender__ = true
-    } else {
-      const oriRender = type.render;
-
-      type.render = (...args) => {
-        const res = oriRender(...args)
-        return <Render>{res}</Render>
-      };
-
-      type.__airender__ = true;
-      type.__ori__ = oriRender
-    }
+    renderFunctionHijack({
+      type,
+      render: type.render,
+      next: (oriRender) => {
+        type.render = (...args) => {
+          const res = oriRender(...args)
+          return <Render>{res}</Render>
+        };
+      }
+    })
   }
 
   return children;
@@ -305,13 +321,19 @@ const FunctionNext = ({ children }: NextProps) => {
   const { type, props } = children as any;
 
   if ((type as any).prototype instanceof Component) {
+    if (!type.__airender__) {
+      renderFunctionHijack({
+        type,
+        render: type.prototype.render,
+        next: (oriRender) => {
+          type.prototype.render = function () {
+            const res = oriRender.call(this)
+            return <Render>{res}</Render>
+          };
+        }
+      })
+    }
     return children
-    // class组件
-    const Next = useMemo(() => {
-      return ClassNext(children.type);
-    }, [])
-
-    return <Next {...props}/>
   }
 
   return <Render>{type(props)}</Render>
