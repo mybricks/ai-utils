@@ -24,6 +24,9 @@ type TagType = "normal" | "normalRoot" | "com" | "comRoot";
 /** 组件唯一标识 */
 const DATA_COM_KEY = "data-com-key";
 
+/** 组件唯一标识 */
+const DATA_COM_ID = "data-com-id";
+
 /** 依赖组件完全数据源入参key */
 const RELY_COM_DATA_KEY = "_data";
 
@@ -141,38 +144,14 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
       const { tagName, fullName } = getTagName(path.node.name);
 
       if (tagName) {
-        let classNameAttribute;
+        // let classNameAttribute;
         const isImportedDependency = recordImports.has(tagName);
-        const attributeNames = new Set(path.node.attributes.filter((attr) => {
+        const attributeNamesMap = path.node.attributes.filter((attr) => {
           return types.isJSXAttribute(attr)
-        }).map((attr) => {
-          // const attributeName = attr.name.name;
-
-          // if (isImportedDependency) {
-          //   if (attributeName === "className") {
-          //     classNameAttribute = attr;
-          //     const { value } = attr;
-          //     const className = replaceNonAlphaNumeric(recordImports.get(tagName));
-          //     if (types.isJSXExpressionContainer(value)) {
-          //       const { expression } = value;
-          //       if (types.isMemberExpression(expression)) {
-          //         value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
-          //       } else if (types.isBinaryExpression(expression)) {
-          //         const classNames = parseBinaryExpression(expression);
-          //         if (!classNames.some((cn) => cn === className || cn === ` ${className}`)) {
-          //           value.expression = types.binaryExpression("+", expression, types.stringLiteral(` ${className}`)) 
-          //         }
-          //       }
-          //     } else if (types.isStringLiteral(value)) {
-          //       if (!value.value.split(" ").includes(className)) {
-          //         attr.value = types.stringLiteral(`${value.value} ${className}`);
-          //       }
-          //     }
-          //   }
-          // }
-
-          return attr.name.name as string
-        }))
+        }).reduce((attributeNamesMap, attr) => {
+          attributeNamesMap.set(attr.name.name as string, attr)
+          return attributeNamesMap
+        }, new Map())
 
         let type: TagType = "normal";
 
@@ -199,35 +178,48 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
         }
 
         // 扩展属性
-        const extendJSXProps = travelFn({tagName, attributeNames, type, libName: recordDependency.get(tagName), comName: fullName})
+        const extendJSXProps = travelFn({tagName, attributeNames: new Set(Array.from(attributeNamesMap.keys())), type, libName: recordDependency.get(tagName), comName: fullName})
         if (extendJSXProps) {
           Object.entries(extendJSXProps).forEach(([key, value]) => {
-            if (!attributeNames.has(key)) {
-              // 设置没有的key value
-              path.node.attributes.push(
-                types.jsxAttribute(
-                  types.jsxIdentifier(key),
-                  types.stringLiteral(value),
-                ),
-              );
-            }
-          })
-          const dataComKey = extendJSXProps[DATA_COM_KEY];
-          // 没有_data属性，并且有data-com-key属性
-          if (!attributeNames.has(RELY_COM_DATA_KEY) && dataComKey) {
-            path.node.attributes.push(
-              types.jsxAttribute(
-                types.jsxIdentifier(RELY_COM_DATA_KEY),
-                types.jSXExpressionContainer(
-                  types.memberExpression(
-                    types.identifier(COM_DATA_KEY),
-                    types.stringLiteral(dataComKey),
-                    true
+            if (!attributeNamesMap.has(key)) {
+              // 没有的属性，添加上
+              if (key === DATA_COM_ID) {
+                // 特殊约定字段
+                path.node.attributes.push(
+                  types.jsxAttribute(
+                    types.jsxIdentifier(key),
+                    attributeNamesMap.has("key") ? types.jsxExpressionContainer(
+                      types.binaryExpression("+", types.stringLiteral(value), attributeNamesMap.get("key").value.expression)
+                    ) : types.stringLiteral(value),
                   )
                 )
-              )
-            )
-          }
+              } else {
+                // 其他的直接赋值
+                path.node.attributes.push(
+                  types.jsxAttribute(
+                    types.jsxIdentifier(key),
+                    types.stringLiteral(value),
+                  ),
+                );
+              }
+            }
+          })
+          // const dataComKey = extendJSXProps[DATA_COM_KEY];
+          // 没有_data属性，并且有data-com-key属性
+          // if (!attributeNames.has(RELY_COM_DATA_KEY) && dataComKey) {
+          //   path.node.attributes.push(
+          //     types.jsxAttribute(
+          //       types.jsxIdentifier(RELY_COM_DATA_KEY),
+          //       types.jSXExpressionContainer(
+          //         types.memberExpression(
+          //           types.identifier(COM_DATA_KEY),
+          //           types.stringLiteral(dataComKey),
+          //           true
+          //         )
+          //       )
+          //     )
+          //   )
+          // }
         }
       }
     },
