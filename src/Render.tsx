@@ -244,16 +244,27 @@ const ForwardRefNext = ({ children }: NextProps) => {
     // })
   }
 
-  if (!type.render.__airender__) {
-    type.render.__airender__ = true;
-    const oriRender = type.render;
+  if (!type.__airender__) {
+    if (type.__ori__) {
+      const oriRender = type.__ori__
+      type.render = (...args) => {
+        const res = oriRender(...args)
+        return <Render>{res}</Render>
+      };
+  
+      type.__airender__ = true
+      type.__ori__ = oriRender
+    } else {
+      const oriRender = type.render;
 
-    type.render = (...args) => {
-      const res = oriRender(...args)
-      return <Render>{res}</Render>
-    };
+      type.render = (...args) => {
+        const res = oriRender(...args)
+        return <Render>{res}</Render>
+      };
 
-    type.render.__airender__ = true;
+      type.__airender__ = true;
+      type.__ori__ = oriRender
+    }
   }
 
   return children;
