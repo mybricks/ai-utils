@@ -34,7 +34,7 @@ const RELY_COM_DATA_KEY = "_data";
 const COM_DATA_KEY = "data";
 
 
-export function transformRender(code: string, travelFn: (params: {tagName: string, attributeNames: Set<string>, type: TagType, libName: string, comName: string}) => Record<string, string>) {
+export function transformRender(code: string, travelFn: (params: {tagName: string, attributeNames: Set<string>, type: TagType, libName: string | null, comName: string | null}) => Record<string, string>) {
   //const { types, parser, traverse, generator } = Babel.packages;
 
   const ast = parser.parse(code, {
@@ -63,11 +63,11 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
   let stopJSXElement: boolean = false;
 
   /**
-   * 导入组件到class名的映射
-   * import { Button } from "antd"; => Button => antd_Button
-   * const { A } = Button; => A => antd_Button
+   * 记录导入的依赖
+   * import { Button } from "antd";
+   * ['antd']
    */
-  const recordImports = new Map();
+  const recordImports = new Set();
 
   /** 记录依赖组件 */
   const recordDependency = new Map();
@@ -77,7 +77,8 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
     node.specifiers.forEach((specifier) => {
       if (types.isImportSpecifier(specifier)) {
         recordDependency.set(specifier.local.name, node.source.value)
-        recordImports.set(specifier.local.name, `${node.source.value}_${specifier.local.name}`);
+        recordImports.add(node.source.value)
+        // recordImports.set(specifier.local.name, `${node.source.value}_${specifier.local.name}`);
       }
     })
   }
@@ -88,7 +89,8 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
       id.properties.forEach((property) => {
         if (types.isObjectProperty(property) && types.isIdentifier(property.key)) {
           // TODO: recordDependency
-          recordImports.set(property.key.name, recordImports.get(relyName))
+          recordDependency.set(property.key.name, relyName)
+          // recordImports.set(property.key.name, recordImports.get(relyName))
           if (types.isObjectPattern(property.value)) {
             // 多层解构
             recordDestructuring(property.value, relyName)
@@ -109,12 +111,34 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
     return result;
   }
 
-  /** 解析 */
 
+  /** 根据标签名获取libName和comName */
+
+  /** 
+   * 根据标签名追溯来源
+   * import { Select } from "antd"
+   * const { Option } = Select 
+   * 
+   * 已知Option 计算得到 ['anrd', 'Select', 'Option']
+   */
+  const traceComponentOriginByTagName = (tagName: string, origin: Map<string, string>) => {
+    const tags = tagName.split('.')
+    let lastOrigin = origin.get(tags[0]);
+
+    while (lastOrigin) {
+      tags.unshift(lastOrigin)
+      lastOrigin = origin.get(lastOrigin)
+    }
+
+    return tags
+  }
+
+
+  /** 解析 */
   traverse(ast, {
     VariableDeclarator(path) {
       const { id, init } = path.node;
-      if (types.isIdentifier(init) && recordImports.has(init.name)) {
+      if (types.isIdentifier(init) && recordDependency.has(init.name)) {
         recordDestructuring(id, init.name)
       }
     },
@@ -142,10 +166,11 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
     JSXOpeningElement(path) {
       /** 标签名 */
       const { tagName, fullName } = getTagName(path.node.name);
+      const origin = traceComponentOriginByTagName(fullName, recordDependency)
 
       if (tagName) {
         // let classNameAttribute;
-        const isImportedDependency = recordImports.has(tagName);
+        const isImportedDependency = recordImports.has(origin[0]);
         const attributeNamesMap = path.node.attributes.filter((attr) => {
           return types.isJSXAttribute(attr)
         }).reduce((attributeNamesMap, attr) => {
@@ -178,7 +203,8 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
         }
 
         // 扩展属性
-        const extendJSXProps = travelFn({tagName, attributeNames: new Set(attributeNamesMap.keys()), type, libName: recordDependency.get(tagName), comName: fullName})
+        // tagName 没用到
+        const extendJSXProps = travelFn({tagName, attributeNames: new Set(attributeNamesMap.keys()), type, libName: isImportedDependency ? origin[0] : null, comName: isImportedDependency ? origin.slice(1).join('.') : null})
         if (extendJSXProps) {
           Object.entries(extendJSXProps).forEach(([key, value]) => {
             if (!attributeNamesMap.has(key)) {
