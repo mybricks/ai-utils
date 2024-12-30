@@ -278,12 +278,12 @@ export const parseLess = (code: string) => {
 
             // 将属性字符串转换为对象
             const propObj: Record<string, string> = {};
-            const props = properties.split(';').map(prop => prop.trim()).filter(prop => prop);
+            const props = properties.split("\n").map(prop => prop.trim()).filter(prop => prop);
             props.forEach(prop => {
-              const [key, value] = prop.split(':').map(p => p.trim());
-              if (key && value) {
-                propObj[key] = value;
-              }
+              const index = prop.indexOf(":")
+              const key = prop.slice(0, index)
+              const value = prop.slice(index + 1).trim().replace(/;$/, "")
+              propObj[key] = value;
             });
 
             cssObj[selector] = propObj;
