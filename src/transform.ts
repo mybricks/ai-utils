@@ -260,63 +260,60 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
 }
 
 export const parseLess = (code: string) => {
-  return new Promise((resolve, reject) => {
-    try {
-      less.render(code, (error, output) => {
-        if (error) {
-          reject(error)
-        } else if (output) {
-          const cssObj: Record<string, Record<string, string>> = {};
-          const css = output.css;
+  const cssObj: Record<string, Record<string, string>> = {};
+  try {
+    less.render(code, (error, output) => {
+      if (error) {
+        console.error(error)
+      } else if (output) {
+        const css = output.css;
 
-          // 正则表达式匹配CSS规则和属性
-          const reg = /([^{}]*?)\{([^}]*)\}/g;
-          let match;
-          while ((match = reg.exec(css)) !== null) {
-            const selector = match[1].trim();
-            const properties = match[2].trim();
+        // 正则表达式匹配CSS规则和属性
+        const reg = /([^{}]*?)\{([^}]*)\}/g;
+        let match;
+        while ((match = reg.exec(css)) !== null) {
+          const selector = match[1].trim();
+          const properties = match[2].trim();
 
-            // 将属性字符串转换为对象
-            const propObj: Record<string, string> = {};
-            const props = properties.split("\n").map(prop => prop.trim()).filter(prop => prop);
-            props.forEach(prop => {
-              const index = prop.indexOf(":")
-              const key = prop.slice(0, index)
-              const value = prop.slice(index + 1).trim().replace(/;$/, "")
-              propObj[key] = value;
-            });
+          // 将属性字符串转换为对象
+          const propObj: Record<string, string> = {};
+          const props = properties.split("\n").map(prop => prop.trim()).filter(prop => prop);
+          props.forEach(prop => {
+            const index = prop.indexOf(":")
+            const key = prop.slice(0, index)
+            const value = prop.slice(index + 1).trim().replace(/;$/, "")
+            propObj[key] = value;
+          });
 
-            cssObj[selector] = propObj;
-          }
-
-          const emptyStartKeys = new Set<string>();
-          const startKeys = new Set<string>();
-
-          Object.keys(cssObj).forEach((key) => {
-            const keys = key.split(' ');
-            if (keys.length > 1) {
-              startKeys.add(keys[0])
-            } else {
-              startKeys.add(keys[0])
-              emptyStartKeys.add(keys[0])
-            }
-          })
-
-          startKeys.forEach((key) => {
-            if (!emptyStartKeys.has(key)) {
-              cssObj[key] = {};
-            }
-          })
-
-          resolve(cssObj)
-        } else {
-          reject("未知错误")
+          cssObj[selector] = propObj;
         }
-      })
-    } catch (error) {
-      reject(error)
-    }
-  })
+
+        const emptyStartKeys = new Set<string>();
+        const startKeys = new Set<string>();
+
+        Object.keys(cssObj).forEach((key) => {
+          const keys = key.split(' ');
+          if (keys.length > 1) {
+            startKeys.add(keys[0])
+          } else {
+            startKeys.add(keys[0])
+            emptyStartKeys.add(keys[0])
+          }
+        })
+
+        startKeys.forEach((key) => {
+          if (!emptyStartKeys.has(key)) {
+            cssObj[key] = {};
+          }
+        })
+      } else {
+        console.error("未知错误")
+      }
+    })
+  } catch (error) {
+    console.error(error)
+  }
+  return cssObj;
 }
 
 export const stringifyLess = (cssObj: Record<string, Record<string, string>>) => {
