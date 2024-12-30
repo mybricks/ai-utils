@@ -15,6 +15,8 @@ import type {
 
 import type {packages} from "@babel/standalone";
 
+import less from "less"
+
 import { replaceNonAlphaNumeric } from "./utils";
 
 // const Babel = (window as any).Babel as { packages: typeof packages }// https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js
@@ -255,4 +257,110 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
   const sourceCode = generator(ast).code;
 
   return sourceCode;
+}
+
+export const parseLess = (code: string) => {
+  return new Promise((resolve, reject) => {
+    try {
+      less.render(code, (error, output) => {
+        if (error) {
+          reject(error)
+        } else if (output) {
+          const cssObj: Record<string, Record<string, string>> = {};
+          const css = output.css;
+
+          // 正则表达式匹配CSS规则和属性
+          const reg = /([^{}]*?)\{([^}]*)\}/g;
+          let match;
+          while ((match = reg.exec(css)) !== null) {
+            const selector = match[1].trim();
+            const properties = match[2].trim();
+
+            // 将属性字符串转换为对象
+            const propObj: Record<string, string> = {};
+            const props = properties.split(';').map(prop => prop.trim()).filter(prop => prop);
+            props.forEach(prop => {
+              const [key, value] = prop.split(':').map(p => p.trim());
+              if (key && value) {
+                propObj[key] = value;
+              }
+            });
+
+            cssObj[selector] = propObj;
+          }
+
+          const emptyStartKeys = new Set<string>();
+          const startKeys = new Set<string>();
+
+          Object.keys(cssObj).forEach((key) => {
+            const keys = key.split(' ');
+            if (keys.length > 1) {
+              startKeys.add(keys[0])
+            } else {
+              startKeys.add(keys[0])
+              emptyStartKeys.add(keys[0])
+            }
+          })
+
+          startKeys.forEach((key) => {
+            if (!emptyStartKeys.has(key)) {
+              cssObj[key] = {};
+            }
+          })
+
+          resolve(cssObj)
+        } else {
+          reject("未知错误")
+        }
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+export const stringifyLess = (cssObj: Record<string, Record<string, string>>) => {
+  const startKeyMap: any = {};
+
+  Object.keys(cssObj).forEach((key) => {
+    const startKey = key.split(" ")[0];
+    if (!startKeyMap[startKey]) {
+      const keys = new Set<string>();
+      keys.add(key)
+      startKeyMap[startKey] = keys
+    } else {
+      startKeyMap[startKey].add(key)
+    }
+  })
+
+  let cssCode = "";
+
+  Object.entries(startKeyMap).forEach(([key, value]: any) => {
+    const keyMap: any = {};
+
+    Array.from(value).sort((a: any, b: any) => {
+      return b.split(' ').length - a.split(' ').length
+    }).forEach((key: any) => {
+      const keys = key.split(" ");
+      const valueCode = Object.entries(cssObj[key]).map(([key, value]) => {
+        return `${key}: ${value};`
+      }).join("")
+      const lastKey = keys.slice(0, keys.length - 1).join(" ")
+      const currentKey = keys[keys.length - 1];
+
+      if (keys.length > 1) {
+        const child = keyMap[key] || "";
+        if (keyMap[lastKey]) {
+          keyMap[lastKey].push(`${currentKey}{${valueCode}${child}}`)
+        } else {
+          // 没有
+          keyMap[lastKey] = [`${currentKey}{${valueCode}${child}}`]
+        }
+      } else {
+        cssCode = `${currentKey}{${valueCode}${keyMap[currentKey].join("")}}`
+      }
+    })
+  })
+
+  return cssCode;
 }
