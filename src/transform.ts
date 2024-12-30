@@ -282,7 +282,7 @@ export const parseLess = (code: string) => {
             const index = prop.indexOf(":")
             const key = prop.slice(0, index)
             const value = prop.slice(index + 1).trim().replace(/;$/, "")
-            propObj[key] = value;
+            propObj[convertHyphenToCamel(key)] = value;
           });
 
           cssObj[selector] = propObj;
@@ -340,7 +340,7 @@ export const stringifyLess = (cssObj: Record<string, Record<string, string>>) =>
     }).forEach((key: any) => {
       const keys = key.split(" ");
       const valueCode = Object.entries(cssObj[key]).map(([key, value]) => {
-        return `${key}: ${value};`
+        return `${convertCamelToHyphen(key)}: ${value};`
       }).join("")
       const lastKey = keys.slice(0, keys.length - 1).join(" ")
       const currentKey = keys[keys.length - 1];
@@ -360,4 +360,12 @@ export const stringifyLess = (cssObj: Record<string, Record<string, string>>) =>
   })
 
   return cssCode;
+}
+
+function convertCamelToHyphen(str: string) {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function convertHyphenToCamel(str: string) {
+  return str.replace(/-(\w)/g, (match, p1) => p1.toUpperCase());
 }
