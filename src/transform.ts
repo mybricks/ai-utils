@@ -354,7 +354,7 @@ export const stringifyLess = (cssObj: Record<string, Record<string, string>>) =>
           keyMap[lastKey] = [`${currentKey}{${valueCode}${child}}`]
         }
       } else {
-        cssCode = `${currentKey}{${valueCode}${keyMap[currentKey].join("")}}`
+        cssCode = cssCode + `${currentKey}{${valueCode}${keyMap[currentKey]?.join("") || ""}}`
       }
     })
   })
