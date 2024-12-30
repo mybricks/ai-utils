@@ -332,29 +332,37 @@ export const stringifyLess = (cssObj: Record<string, Record<string, string>>) =>
 
   let cssCode = "";
 
-  Object.entries(startKeyMap).forEach(([key, value]: any) => {
+  const startKeyEntries = Object.entries(startKeyMap);
+  const lastStartKeyIndex = startKeyEntries.length - 1;
+
+  startKeyEntries.forEach(([key, value]: any, startKeyIndex) => {
     const keyMap: any = {};
 
     Array.from(value).sort((a: any, b: any) => {
       return b.split(' ').length - a.split(' ').length
     }).forEach((key: any) => {
       const keys = key.split(" ");
-      const valueCode = Object.entries(cssObj[key]).map(([key, value]) => {
-        return `${convertCamelToHyphen(key)}: ${value};`
+      const keyIndent = keys.length === 1 ? "" : Array(keys.length * 2 - 1).join(" ")
+      const valueIndex = keyIndent + "  ";
+      const valueEntries = Object.entries(cssObj[key]);
+      const lastIndex = valueEntries.length;
+      const valueCode = valueEntries.map(([key, value], index) => {
+        return `${valueIndex}${convertCamelToHyphen(key)}: ${value};${lastIndex === index ? "" : "\n"}`
       }).join("")
       const lastKey = keys.slice(0, keys.length - 1).join(" ")
       const currentKey = keys[keys.length - 1];
 
       if (keys.length > 1) {
-        const child = keyMap[key] || "";
+        const child = keyMap[key];
         if (keyMap[lastKey]) {
-          keyMap[lastKey].push(`${currentKey}{${valueCode}${child}}`)
+          keyMap[lastKey].push(`${keyIndent}${currentKey} {\n${valueCode}${child ? "\n" + child.join("") : ""}\n${keyIndent}}`)
         } else {
           // 没有
-          keyMap[lastKey] = [`${currentKey}{${valueCode}${child}}`]
+          keyMap[lastKey] = [`${keyIndent}${currentKey} {\n${valueCode}${child ? "\n" + child.join("") : ""}${keyIndent}}`]
         }
       } else {
-        cssCode = cssCode + `${currentKey}{${valueCode}${keyMap[currentKey]?.join("") || ""}}`
+        const child = keyMap[currentKey];
+        cssCode = cssCode + `${currentKey} {\n${valueCode}${child ? child.join("\n\n") : ""}${child ? "\n" : ""}}` + (lastStartKeyIndex === startKeyIndex ? "\n" : "\n\n")
       }
     })
   })
