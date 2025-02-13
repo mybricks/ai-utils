@@ -260,7 +260,7 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
 }
 
 export const parseLess = (code: string) => {
-  const cssObj: Record<string, Record<string, string>> = {};
+  const cssObj: Record<string, Record<string, string> | string> = {};
   try {
     less.render(code, (error, output) => {
       if (error) {
@@ -270,28 +270,52 @@ export const parseLess = (code: string) => {
 
         // 正则表达式匹配CSS规则和属性
         const reg = /([^{}]*?)\{([^}]*)\}/g;
+        let ignore = "";
+        let ignorePrefix = "";
         let match;
         while ((match = reg.exec(css)) !== null) {
           const selector = match[1].trim();
           const properties = match[2].trim();
 
-          // 将属性字符串转换为对象
-          const propObj: Record<string, string> = {};
-          const props = properties.split("\n").map(prop => prop.trim()).filter(prop => prop);
-          props.forEach(prop => {
-            const index = prop.indexOf(":")
-            const key = prop.slice(0, index)
-            const value = prop.slice(index + 1).trim().replace(/;$/, "")
-            propObj[convertHyphenToCamel(key)] = value;
-          });
+          if (selector.startsWith(".")) {
+            if (ignore) {
+              cssObj[ignorePrefix] = ignore.trim() + "\n}\n";
+              ignorePrefix = ""
+              ignore = "";
+            }
 
-          cssObj[selector] = propObj;
+            // 将属性字符串转换为对象
+            const propObj: Record<string, string> = {};
+            const props = properties.split("\n").map(prop => prop.trim()).filter(prop => prop);
+            props.forEach(prop => {
+              const index = prop.indexOf(":")
+              const key = prop.slice(0, index)
+              const value = prop.slice(index + 1).trim().replace(/;$/, "")
+              propObj[convertHyphenToCamel(key)] = value;
+            });
+
+            cssObj[selector] = propObj;
+          } else {
+            if (!ignorePrefix) {
+              ignorePrefix = selector
+            }
+            ignore += match[0];
+          }
+        }
+
+        if (ignore) {
+          cssObj[ignorePrefix] = ignore.trim() + "\n}";
+          ignorePrefix = ""
+          ignore = "";
         }
 
         const emptyStartKeys = new Set<string>();
         const startKeys = new Set<string>();
 
         Object.keys(cssObj).forEach((key) => {
+          if (!key.startsWith(".")) {
+            return
+          }
           const keys = key.split(' ');
           if (keys.length > 1) {
             startKeys.add(keys[0])
@@ -316,10 +340,15 @@ export const parseLess = (code: string) => {
   return cssObj;
 }
 
-export const stringifyLess = (cssObj: Record<string, Record<string, string>>) => {
+export const stringifyLess = (cssObj: Record<string, Record<string, string> | string>) => {
   const startKeyMap: any = {};
 
   Object.keys(cssObj).forEach((key) => {
+    if (!key.startsWith(".")) {
+      startKeyMap[key] = cssObj[key];
+      return;
+    }
+
     const startKey = key.split(" ")[0];
     if (!startKeyMap[startKey]) {
       const keys = new Set<string>();
@@ -336,6 +365,12 @@ export const stringifyLess = (cssObj: Record<string, Record<string, string>>) =>
   const lastStartKeyIndex = startKeyEntries.length - 1;
 
   startKeyEntries.forEach(([key, value]: any, startKeyIndex) => {
+
+    if (typeof value === "string") {
+      cssCode += value + "\n";
+      return;
+    }
+
     const keyMap: any = {};
 
     Array.from(value).sort((a: any, b: any) => {
