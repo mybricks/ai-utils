@@ -277,7 +277,7 @@ export const parseLess = (code: string) => {
           const selector = match[1].trim();
           const properties = match[2].trim();
 
-          if (selector.startsWith(".")) {
+          if (selector.startsWith(".") || selector.startsWith("[")) {
             if (ignore) {
               cssObj[ignorePrefix] = ignore.trim() + "\n}\n";
               ignorePrefix = ""
@@ -313,7 +313,7 @@ export const parseLess = (code: string) => {
         const startKeys = new Set<string>();
 
         Object.keys(cssObj).forEach((key) => {
-          if (!key.startsWith(".")) {
+          if (!key.startsWith(".") && !key.startsWith("[")) {
             return
           }
           const keys = key.split(' ');
@@ -344,7 +344,7 @@ export const stringifyLess = (cssObj: Record<string, Record<string, string> | st
   const startKeyMap: any = {};
 
   Object.keys(cssObj).forEach((key) => {
-    if (!key.startsWith(".")) {
+    if (!key.startsWith(".") && !key.startsWith("[")) {
       startKeyMap[key] = cssObj[key];
       return;
     }
