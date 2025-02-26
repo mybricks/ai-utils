@@ -266,7 +266,7 @@ export const parseLess = (code: string) => {
       if (error) {
         console.error(error)
       } else if (output) {
-        const css = output.css;
+        const css = output.css.replace(/\/\*[\s\S]*?\*\//g, '');
 
         // 正则表达式匹配CSS规则和属性
         const reg = /([^{}]*?)\{([^}]*)\}/g;
