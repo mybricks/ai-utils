@@ -259,6 +259,172 @@ export function transformRender(code: string, travelFn: (params: {tagName: strin
   return sourceCode;
 }
 
+type CSSObj = {
+  [key: string]: string | CSSObj;
+};
+
+export const parseLessNext = (code: string) => {
+  const cssObj: CSSObj = {};
+  const meta: {key: string; propKey: string; ignore?: string; comment?: string;}[] = [];
+  try {
+    less.render(code, (error, output) => {
+      if (error) {
+        console.error(error)
+      } else if (output) {
+        const css = output.css;
+        const cssSplits = css.split("\n");
+
+        let ignore = "";
+        let comment = "";
+        let selector = "";
+        let obj: Record<string, string> = {};
+        /** 记录忽略内容的括号 */
+        let brace = 0;
+
+        cssSplits.forEach((cssSplit) => {
+          const str = cssSplit.trim(); 
+
+          if (!ignore) {
+            if (str.startsWith("/*")) {
+              if (str.endsWith("*/")) {
+                meta.push({
+                  key: selector,
+                  propKey: '',
+                  comment: `${cssSplit}\n`
+                })
+              } else {
+                comment += `${cssSplit}\n`
+              }
+              return;
+            }
+          }
+          
+          if (str.endsWith("{")) {
+            if (ignore) {
+              ignore += `${cssSplit}\n`;
+              brace++;
+              return
+            }
+            if (!['.', '['].includes(str[0])) {
+              ignore += `${cssSplit}\n`;
+              brace++;
+            } else {
+              selector = str.replace(/{$/, "").trim();
+            }
+          } else if (str.endsWith(";")) {
+            if (ignore) {
+              ignore += `${cssSplit}\n`
+              return
+            }
+
+            const [key, value] = str.split(":");
+            const keyTransform = convertHyphenToCamel(key);
+            obj[keyTransform] = value.trim().replace(/;$/, "");
+            meta.push({
+              key: selector,
+              propKey: keyTransform,
+            })
+          } else if (str.endsWith("}")) {
+
+            if (ignore) {
+              brace--;
+
+              ignore += `${cssSplit}\n`
+
+              if (brace === 0) {
+                meta.push({
+                  key: selector,
+                  propKey: "",
+                  ignore
+                })
+                ignore = "";
+              }
+
+              return
+            }
+            cssObj[selector] = obj;
+            selector = "";
+            obj = {};
+          } else if (str.endsWith("*/")) {
+            if (ignore) {
+              ignore += `${cssSplit}\n`
+              return
+            }
+            meta.push({
+              key: selector,
+              propKey: "",
+              comment: comment += `${cssSplit}\n`
+            })
+            comment = "";
+          }
+        })
+      } else {
+        console.error("未知错误")
+      }
+    })
+  } catch (error) {
+    console.error(error)
+  }
+
+  return {
+    ...cssObj,
+    meta
+  };
+}
+
+export const stringifyLessNext = (cssObjWithMeta: any) => {
+  const { meta, ...cssObj } = cssObjWithMeta;
+  const calculateIndentCharacters = (indentation: number) => {
+    return Array(indentation * 2 - 1).join(" ") + "  ";
+  }
+  let lessCode = "";
+  let selector = "";
+  let indentation = 0;
+
+  (meta as {key: string; propKey: string; ignore?: string; comment?: string}[]).forEach(({ key, propKey, ignore, comment }) => {
+    if (comment) {
+      lessCode += comment
+    } else if (ignore) {
+      if (!selector) {
+        lessCode += ignore
+      } else {
+        for (let i = indentation + 1; i > 0; i --) {
+          lessCode += `${Array((i - 1) * 3).join(" ")}}\n`;
+        }
+        indentation = -1;
+        lessCode += ignore
+      }
+    } else if (!selector) {
+      indentation = 0;
+      selector = key;
+      lessCode += `${key} {\n`;
+      lessCode += `${calculateIndentCharacters(indentation + 1)}${convertCamelToHyphen(propKey)}: ${cssObj[key][propKey]};\n`;
+    } else if (selector === key) {
+      lessCode += `${calculateIndentCharacters(indentation + 1)}${convertCamelToHyphen(propKey)}: ${cssObj[key][propKey]};\n`;
+    } else if (key.startsWith(selector)) {
+      const currentKey = key.replace(selector, "").trim();
+      selector = key;
+      indentation = indentation + 1;
+      lessCode += `\n${calculateIndentCharacters(indentation)}${currentKey} {\n`;
+      lessCode += `${calculateIndentCharacters(indentation + 1)}${convertCamelToHyphen(propKey)}: ${cssObj[key][propKey]};\n`;
+    } else if (selector !== key) {
+      for (let i = indentation + 1; i > 0; i --) {
+        lessCode += `${Array((i - 1) * 3).join(" ")}}\n`;
+      }
+      indentation = 0;
+      selector = key;
+      lessCode += `\n${key} {\n`;
+      lessCode += `${calculateIndentCharacters(indentation + 1)}${convertCamelToHyphen(propKey)}: ${cssObj[key][propKey]};\n`;
+    }
+  })
+
+  for (let i = indentation + 1; i > 0; i --) {
+    lessCode += `${Array((i - 1) * 3).join(" ")}}\n`;
+  }
+
+  return lessCode;
+}
+
 export const parseLess = (code: string) => {
   const cssObj: Record<string, Record<string, string> | string> = {};
   try {
