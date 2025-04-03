@@ -15,13 +15,11 @@ interface RuleSet extends Rule {
 }
 
 type Keyword = {
-  // value: string;
   toCSS: () => string;
 }
 
 type Anonymous = {
   type: "Anonymous";
-  // value: string;
   toCSS: () => string;
 }
 
@@ -51,7 +49,6 @@ type Expression = {
 
 type Value = {
   type: "Value";
-  // value: Expression[];
   toCSS: () => string;
 };
 
@@ -118,9 +115,6 @@ class Parse {
     const cssObj: CSSObj = {};
     const cssObjs: {key: string, value: CSSObj}[] = [];
     rules.forEach((rule) => {
-      // console.log("✨ rule.parent => ", rule.parent)
-      // const parentSelector = getSelector(rule.parent.selectors);
-      // console.log("⭐️ parentSelector => ", parentSelector, rule.type);
       if (rule.type === "Ruleset") {
         const next = this.handleRuleSet(rule);
         cssObjs.push(...next)
@@ -216,7 +210,6 @@ export const parseLess = (code: string) => {
       if (error) {
         console.error(error);
       } else {
-        console.log("🚀 css => ", output!.css.replace(/\/\*[\s\S]*?\*\//g, ''));
         (less as any).parse(output!.css.replace(/\/\*[\s\S]*?\*\//g, ""), (error: any, output: any) => {
           if (error) {
             console.error(error);
