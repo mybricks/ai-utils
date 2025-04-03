@@ -175,7 +175,7 @@ class Parse {
       expression.value.forEach((value) => {
         if (value.type === "Paren") {
           const res = this.handleDeclaration(value.value);
-          features += ` (${res.key}: ${res.value})`;
+          features += ` (${convertCamelToHyphen(res.key)}: ${res.value})`;
         } else {
           features += ` ${value.toCSS()}`;
         }
