@@ -93,6 +93,8 @@ export async function parseMBX(template: string) {
             const slotTpt = {
               id: slotId,
               style: attributes.layout,
+              title: attributes.title,
+              type: attributes.type,
               comAry: []
             }
             parentTpt.slots[slotId] = slotTpt;
