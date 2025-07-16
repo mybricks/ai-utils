@@ -81,6 +81,20 @@ export async function parseMBX(template: string) {
           const parentTpt = nodeToTptMap.get(path.parent);
           parentTpt.comAry.push(tpt);
           nodeToTptMap.set(path.node, tpt);
+        }  else if (tagName === 'group') {
+          const tpt = {
+            id,
+            namespace: 'group',
+            title: attributes.title,
+            style: {
+              ...attributes.layout,
+              styleAry: attributes.styleAry,
+            },
+            comAry: [],
+          }
+          const parentTpt = nodeToTptMap.get(path.parent);
+          parentTpt.comAry.push(tpt);
+          nodeToTptMap.set(path.node, tpt);
         } else if (tagName.startsWith("slots")) {
           const [_, slotId] = tagName.split(".");
           const parentTpt = nodeToTptMap.get(path.parent);
