@@ -12,9 +12,22 @@ import type {
   StringLiteral,
 } from "@babel/types";
 
+import { fixUnescapedQuotesJsxDataProps } from './fixUnescapedQuotesJsx'
+import { fixMissingEqualSignJsx } from './fixMissingEqualSignJsx'
+
 import * as types from '@babel/types'
 
-export async function parseMBX(template: string) {
+export async function parseMBX(jsxString: string) {
+  let template = jsxString
+  try {
+    let tempString = jsxString
+    tempString = fixMissingEqualSignJsx(tempString)
+    tempString = fixUnescapedQuotesJsxDataProps(tempString)
+    template = tempString
+  } catch (error) {
+    console.log(error)
+  }
+
   const ast = parser.parse(template.replace(/<!--((?!-->)[\s\S])*-->/g, ''), {
     sourceType: "module",
     plugins: ['jsx']
@@ -81,10 +94,38 @@ export async function parseMBX(template: string) {
           const parentTpt = nodeToTptMap.get(path.parent);
           parentTpt.comAry.push(tpt);
           nodeToTptMap.set(path.node, tpt);
-        }  else if (tagName === 'group') {
+        } else if (tagName === 'group') {
           const tpt = {
             id,
             namespace: 'group',
+            title: attributes.title,
+            style: {
+              ...attributes.layout,
+              styleAry: attributes.styleAry,
+            },
+            comAry: [],
+          }
+          const parentTpt = nodeToTptMap.get(path.parent);
+          parentTpt.comAry.push(tpt);
+          nodeToTptMap.set(path.node, tpt);
+        } else if (tagName === 'view') {
+          const tpt = {
+            id,
+            namespace: 'view',
+            title: attributes.title,
+            style: {
+              ...attributes.layout,
+              styleAry: attributes.styleAry,
+            },
+            comAry: [],
+          }
+          const parentTpt = nodeToTptMap.get(path.parent);
+          parentTpt.comAry.push(tpt);
+          nodeToTptMap.set(path.node, tpt);
+        } else if (tagName === 'relative') {
+          const tpt = {
+            id,
+            namespace: 'relative',
             title: attributes.title,
             style: {
               ...attributes.layout,
