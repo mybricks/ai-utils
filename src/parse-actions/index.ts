@@ -67,12 +67,17 @@ export const parseActions = (actions = []) => {
     }
 
     // absolute 布局的转化
-    if (newAct.type === 'addChild' && Array.isArray(newAct.params?.configs)) { 
+    if (newAct.type === 'addChild' && Array.isArray(newAct.params?.configs)) {
       newAct.params.configs.forEach(config => {
-       if (config?.value?.display === 'absolute') {
-        config.value.position = 'smart'
-        delete config.value.display
-       }
+        if (config?.value?.display === 'absolute') {
+          config.value.position = 'smart'
+          delete config.value.display
+        }
+
+        if (config?.style) {
+          // 兼容background
+          transformToValidBackground(config?.style)
+        }
       })
     }
 
