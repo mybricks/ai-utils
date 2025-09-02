@@ -1,8 +1,18 @@
 export const parseActions = (actions = []) => {
-  if (!Array.isArray(actions)) {
+  let _actions = actions;
+  if (typeof actions === 'string') {
+    try {
+      _actions = JSON.parse(actions)
+    } catch (error) {
+      console.error('parse actions error:', error)
+    }
+  }
+
+  if (!Array.isArray(_actions)) {
     throw new Error('actions must be an array')
   }
-  return actions.map(act => {
+
+  return _actions.map(act => {
     if (!Array.isArray(act)) {
       return act
     }
