@@ -1,3 +1,5 @@
+import { jsonrepair } from 'jsonrepair'
+
 interface Config {
   path: string,
   value: any,
@@ -32,7 +34,13 @@ export const parseActions = (actions = []) => {
     try {
       _actions = JSON.parse(actions)
     } catch (error) {
-      console.error('parse actions error:', error)
+      console.warn('parse actions error，trying repairing...', error?.message || 'unknown error')
+      try {
+        const repairedActions = jsonrepair(actions)
+        _actions = JSON.parse(repairedActions)
+      } catch (error) {
+        console.error('repair actions error, please try again', error)
+      }
     }
   }
 
